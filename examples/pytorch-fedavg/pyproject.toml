@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytorch-fedavg-viz"
+version = "1.1.13"
+description = "Federated Learning with PyTorch and Flower (Quickstart Example)"
+license = {file = "LICENSE"}
+dependencies = [
+    "flwr[simulation]>=1.36.0",
+    "flwr-datasets[vision]>=0.6.1",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+    "flwr-viz",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.flwr.app]
+publisher = "flwrlabs"
+fab-format-version = 1
+flwr-version-target = "1.36.0"
+
+[tool.flwr.app.components]
+serverapp = "pytorchexample.server_app:app"
+clientapp = "pytorchexample.client_app:app"
+
+[tool.flwr.app.config]
+num-server-rounds = 3
+fraction-evaluate = 1.0
+local-epochs = 1
+learning-rate = 0.1
+batch-size = 32
+save-model = false
+# flwr-viz: where events go and how much detail leaves each process
+viz-url = "http://127.0.0.1:7878"
+viz-level = "standard"
+
+# flwr-viz is not on PyPI yet. Flower 1.44 builds a fresh env for every run
+# with `uv sync`, so tell uv where the package lives. Use an ABSOLUTE path:
+# the app is copied to ~/.flwr/apps before uv runs. Remove once on PyPI.
+[tool.uv.sources]
+flwr-viz = { path = "/absolute/path/to/flwr-viz", editable = true }   # <- set this to where you cloned flwr-viz

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "flwr-viz"
+version = "0.1.0"
+description = "Live 3D visualization of any Flower federated learning run (client mod + strategy wrapper + collector + three.js UI)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# No lower bound on flwr: the app already pins its own Flower version, and a
+# bound here makes `uv sync` fail for apps that also support older Pythons
+# (flwr>=1.37 needs Python 3.11). The version is checked at import instead.
+dependencies = [
+    "flwr",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+collector = ["aiohttp>=3.9"]
+test = ["aiohttp>=3.9", "pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+flwr-viz = "flwr_viz.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/flwr_viz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

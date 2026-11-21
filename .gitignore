@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.egg-info/
+flwr-viz-runs/
+examples/*/run*.log
+examples/*/timing.log
+_install.log
+.pytest_cache/
+site/
+.DS_Store
+.claude/
+_template_ref/
+# Flower Hub apps are other people's code: keep only our recordings of them
+examples/hub/*/*
+!examples/hub/*/recorded-run*.jsonl
+examples/*/checkpoints/
+*.pt
+examples/**/*.log
+examples/**/logs/

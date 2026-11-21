@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>flwr·viz — see federated learning happen</title>
+<meta name="description" content="A plug-in for the Flower framework that turns any federated learning run into a live 3D scene you can replay, question and learn from.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l8 10-8 16-8-16z' fill='%235fb4f0' stroke='%231f1d22' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+@font-face { font-family: "Patrick Hand"; src: url("viewer/static/vendor/PatrickHand.woff2") format("woff2"); font-display: swap; }
+:root {
+  --bg: #f4efe4; --paper: #fffdf7; --ink: #1f1d22; --fg: #18203a; --muted: #6a6676; --line: #e6dccb;
+  --accent: #9a7636; --sapphire: #22355f; --mint: #cfe8dd; --peach: #f3d3c4; --gold: #f2b84b; --holo: #3d9bd8;
+  --hand: "Patrick Hand", "Comic Sans MS", cursive;
+}
+* { box-sizing: border-box; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 19px/1.4 var(--hand); }
+a { color: var(--sapphire); }
+code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.slide { min-height: 100vh; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: center;
+  padding: 56px max(16px, 6vw) 64px; position: relative; overflow: hidden; }
+.slide:nth-child(even) { background: #f7f1e6; }
+.box { background: var(--paper); border: 2.5px solid var(--ink); border-radius: 10px; box-shadow: 4px 4px 0 var(--ink); }
+.kicker { font-size: 15px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+h1 { font-size: clamp(56px, 11vw, 132px); line-height: .95; margin: 0; letter-spacing: .02em; font-weight: 400; }
+h1 span { color: var(--holo); }
+h2 { font-size: clamp(34px, 5vw, 58px); line-height: 1.05; margin: 0 0 18px; font-weight: 400; max-width: 22ch; }
+.lead { font-size: clamp(20px, 2.2vw, 27px); max-width: 38ch; margin: 12px 0 0; }
+.btn { display: inline-block; font: inherit; font-size: 20px; padding: 6px 18px; background: var(--paper); color: var(--ink); text-decoration: none;
+  border: 2.5px solid var(--ink); border-radius: 8px; box-shadow: 3px 3px 0 var(--ink); cursor: pointer; transition: transform .08s, box-shadow .08s; }
+.btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.btn.primary { background: var(--gold); }
+.row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 22px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* nav */
+#dots { position: fixed; right: 14px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 20; }
+#dots a { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); display: block; }
+#dots a.on { background: var(--gold); }
+#count { position: fixed; left: 14px; bottom: 12px; z-index: 20; font-size: 15px; color: var(--muted); }
+@media (max-width: 700px) { #dots { display: none; } }
+
+/* hero */
+#hero { padding: 0; }
+#hero iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+#hero .veil { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(244,239,228,.97) 0%, rgba(244,239,228,.86) 38%, rgba(244,239,228,0) 70%); }
+#hero .copy { position: relative; padding: 0 max(16px, 6vw); max-width: 760px; }
+@media (max-width: 760px) { #hero .veil { background: rgba(244,239,228,.82); } }
+.scroll { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 16px; color: var(--muted); animation: bob 1.6s infinite; }
+@keyframes bob { 50% { transform: translate(-50%, 6px); } }
+
+/* log vs scene */
+pre.log { margin: 0; padding: 16px 18px; font-size: 13.5px; line-height: 1.5; background: #1f1d22; color: #d8e0ec; border-radius: 10px;
+  border: 2.5px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); overflow: auto; white-space: pre-wrap; word-break: break-word; }
+pre.log b { color: #9fd3ff; font-weight: 400; }
+
+/* code */
+.code { display: grid; gap: 14px; }
+.code .box { padding: 12px 16px; }
+.code h4 { margin: 0 0 6px; font-size: 15px; font-weight: 400; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.code pre { margin: 0; font-size: 15px; white-space: pre-wrap; }
+.code pre .k { color: #8e5aa8; } .code pre .s { color: #1f7a5c; } .code pre .h { background: #fff1b8; }
+
+/* diagram */
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: stretch; margin-top: 10px; }
+.flow .box { padding: 14px; position: relative; }
+.flow .box:not(:last-child)::after { content: "→"; position: absolute; right: -18px; top: 42%; font-size: 26px; }
+.flow h3 { margin: 0 0 6px; font-weight: 400; font-size: 23px; }
+.flow p { margin: 0; font-size: 16px; color: #3a3d4f; }
+@media (max-width: 860px) { .flow { grid-template-columns: 1fr; } .flow .box::after { display: none; } }
+
+/* legend */
+.legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.legend .box { padding: 14px; }
+.legend h3 { margin: 0 0 4px; font-weight: 400; font-size: 23px; }
+.legend p { margin: 0; font-size: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chips span { font-size: 14px; padding: 0 8px; border: 1.5px solid var(--ink); border-radius: 999px; }
+@media (max-width: 860px) { .legend { grid-template-columns: 1fr; } }
+.ramp { height: 14px; border: 1.5px solid var(--ink); border-radius: 4px; margin-top: 8px;
+  background: linear-gradient(90deg, #dbe6f3, #9cc5e8, #8fd3bd, #f2d27a, #f4a259, #e76f51, #c8323b); }
+
+/* try it */
+#try { padding-top: 40px; padding-bottom: 40px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+.tabs button { font: inherit; font-size: 16px; padding: 2px 12px; background: var(--paper); border: 2px solid var(--ink); border-radius: 6px; box-shadow: 2px 2px 0 var(--ink); cursor: pointer; }
+.tabs button.on { background: var(--gold); }
+.frame { position: relative; height: min(64vh, 720px); border: 2.5px solid var(--ink); border-radius: 10px; box-shadow: 4px 4px 0 var(--ink); overflow: hidden; background: var(--bg); }
+.frame iframe { width: 100%; height: 100%; border: 0; }
+.caption { font-size: 17px; color: #3a3d4f; margin: 8px 0 0; min-height: 2.6em; }
+
+/* tables */
+table { border-collapse: collapse; width: 100%; font-size: 17px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1.5px dashed var(--line); vertical-align: top; }
+th { font-weight: 400; color: var(--muted); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; }
+.tick { color: #1f7a5c; } .cross { color: #c8323b; }
+.fixes { columns: 2; column-gap: 30px; margin: 14px 0 0; padding-left: 22px; font-size: 17px; }
+.fixes li { break-inside: avoid; margin-bottom: 6px; }
+@media (max-width: 860px) { .fixes { columns: 1; } }
+
+/* levels */
+.levels { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.levels li { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: start; }
+.levels b { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--mint); font-weight: 400; font-size: 20px; }
+.levels i { font-style: normal; color: var(--muted); }
+
+.cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.cols3 .box { padding: 14px 16px; }
+.cols3 h3 { margin: 0 0 6px; font-weight: 400; font-size: 23px; }
+.cols3 ul { margin: 0; padding-left: 20px; font-size: 17px; }
+@media (max-width: 860px) { .cols3 { grid-template-columns: 1fr; } }
+@media (max-width: 700px) {
+  html { scroll-snap-type: y proximity; }
+  .slide { min-height: auto; padding-top: 44px; padding-bottom: 44px; }
+  #hero { min-height: 100vh; }
+  table th:nth-child(2), table td:nth-child(2) { display: none; }
+  table { font-size: 15px; }
+}
+footer { font-size: 15px; color: var(--muted); margin-top: 26px; }
+</style>
+</head>
+<body>
+<nav id="dots" aria-label="slides"></nav>
+<div id="count"></div>
+
+<!-- 1 -->
+<section class="slide" id="hero">
+  <iframe data-src="viewer/?file=pytorch-fedavg.jsonl&embed=1&speed=3" title="a real federated run replaying" loading="lazy"></iframe>
+  <div class="veil"></div>
+  <div class="copy">
+    <p class="kicker">a plug-in for the Flower framework</p>
+    <h1>flwr<span>·</span>viz</h1>
+    <p class="lead">See federated learning happen. Every round, every message, every client, live in your browser.</p>
+    <div class="row"><a class="btn primary" href="#try">Try it</a><a class="btn" href="viewer/?tour=1" target="_blank" rel="noopener">Take the tour</a><a class="btn" href="https://github.com/qwertykeypadapple/flwr-viz" target="_blank" rel="noopener">Source on GitHub</a></div>
+  </div>
+  <div class="scroll">scroll ↓ (or use the arrow keys)</div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="grid2">
+    <div>
+      <p class="kicker">the problem</p>
+      <h2>Federated learning is invisible.</h2>
+      <p class="lead">The data never leaves the clients. That's the point. But it also means that while a run is going, all you see is a log. Which client was slow? Which layers moved? Who failed, and did the round carry on? The log doesn't say.</p>
+    </div>
+    <pre class="log" aria-label="real Flower log from one of the runs on this page">INFO :      <b>[ROUND 1/4]</b>
+INFO :      configure_train: Sampled 10 nodes (out of 10)
+INFO :      aggregate_train: Received 10 results and 0 failures
+INFO :      	└──> Aggregated MetricRecord: {'train_loss': 2.2082524519920352}
+INFO :      configure_evaluate: Sampled 5 nodes (out of 10)
+INFO :      aggregate_evaluate: Received 5 results and 0 failures
+INFO :      	└──> Aggregated MetricRecord: {'eval_loss': 2.36415708810091, 'eval_acc': 0.0986}
+INFO :      Global evaluation
+INFO :      	└──> MetricRecord: {'accuracy': 0.1, 'loss': 2.3580342968807946}
+INFO :      <b>[ROUND 2/4]</b>
+INFO :      configure_train: Sampled 10 nodes (out of 10)
+INFO :      aggregate_train: Received 10 results and 0 failures
+INFO :      	└──> Aggregated MetricRecord: {'train_loss': 2.1302059233665465}
+<i style="color:#8b97b0">the real log of the PyTorch run you'll replay on this page</i></pre>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <p class="kicker">how to use it</p>
+  <h2>Add three lines. Change nothing else.</h2>
+  <div class="grid2">
+    <div class="code">
+      <div class="box"><h4>client_app.py</h4><pre><span class="k">from</span> flwr_viz <span class="k">import</span> viz_mod
+app = ClientApp(<span class="h">mods=[viz_mod]</span>)</pre></div>
+      <div class="box"><h4>server_app.py</h4><pre><span class="k">from</span> flwr_viz <span class="k">import</span> instrument
+strategy = <span class="h">instrument(</span>FedAvg(...)<span class="h">, run_config=context.run_config)</span></pre></div>
+      <div class="box"><h4>terminal</h4><pre>flwr-viz serve        <span class="s"># then open http://127.0.0.1:7878</span></pre></div>
+    </div>
+    <div>
+      <p class="lead">Works with any model, dataset and ML framework, and with any Flower strategy: FedAvg, FedProx, FedMedian, Krum, or your own.</p>
+      <p class="lead">An app that runs its own loop with no strategy at all just instruments its grid:<br><code style="font-size:17px">grid = instrument(grid, ...)</code></p>
+      <p class="lead" style="color:var(--muted)">Built for Flower 1.44, using the Message API. Flower itself is not modified.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <p class="kicker">how it works</p>
+  <h2>Four small parts.</h2>
+  <div class="flow">
+    <div class="box"><h3>Client mod</h3><p>Wraps every message a client handles: when it arrived, how long the job took, the metrics, and per-layer summaries of the model in and out.</p></div>
+    <div class="box"><h3>Strategy wrapper</h3><p>Wraps any strategy from outside: which clients were picked, every message and reply, failures, timeouts, and how the global model changed.</p></div>
+    <div class="box"><h3>Collector</h3><p>A tiny server that receives the events over the network, records every run to a file, and streams them to browsers.</p></div>
+    <div class="box"><h3>Browser</h3><p>The 3D scene you see on this page. It rebuilds everything from the events, so live view, scrubbing and replay are the same thing.</p></div>
+  </div>
+  <p class="lead" style="max-width:60ch">Sending never blocks training: if the collector is down, events are quietly dropped. Only summary numbers travel (sizes and changes per layer), never weights or data.</p>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <p class="kicker">reading the scene</p>
+  <h2>Everything has a shape.</h2>
+  <div class="legend">
+    <div class="box"><h3>Clients are characters</h3><p>Their shirt colour is their state, and their pose shows what they're doing.</p>
+      <div class="chips"><span style="background:#f7f5f0">idle</span><span style="background:#7fb2e5">selected</span><span style="background:#5cc39a">training</span><span style="background:#a98ad6">evaluating</span><span style="background:#63c5da">working</span><span style="background:#f4a259">sending</span><span style="background:#9ad1b5">done</span><span style="background:#e5534b;color:#fff">failed</span></div></div>
+    <div class="box"><h3>The server is the diamond</h3><p>It floats in the middle, spins and glows while it merges the clients' updates, and flashes when a new global model is ready.</p></div>
+    <div class="box"><h3>Messages are paper planes</h3><p>Blue planes carry the model out. Orange planes carry updates back. Red means something failed.</p></div>
+    <div class="box"><h3>A model is a stack of books</h3><p>One book per layer. Wider means more numbers; the colour shows how much that layer changed.</p><div class="ramp"></div></div>
+    <div class="box"><h3>Big federations become towers</h3><p>When the clients don't fit on one ring, floors stack downwards. Hundreds of clients stay smooth.</p></div>
+    <div class="box"><h3>Click anyone</h3><p>A beam rises from their head into a card with everything known about them. Hover anything on the card for a plain-language explanation.</p></div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" id="try">
+  <p class="kicker">try it: six real runs</p>
+  <h2 style="max-width:none">Replay a real federation.</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="frame"><iframe id="viewer" title="flwr-viz viewer" data-src=""></iframe></div>
+  <p class="caption" id="caption"></p>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <div class="grid2">
+    <div>
+      <p class="kicker">learn mode</p>
+      <h2>Learn it by answering questions.</h2>
+      <p class="lead">Press <b>learn</b> in the viewer. The run pauses and asks you something; you answer by clicking in the scene; then that part of the run plays and is explained with its real numbers.</p>
+      <div class="row"><a class="btn primary" href="viewer/?tour=1" target="_blank" rel="noopener">Start the tour</a></div>
+    </div>
+    <ol class="levels">
+      <li><b>1</b><div>The federation<br><i>Where is the training data? What has to travel instead?</i></div></li>
+      <li><b>2</b><div>A round<br><i>Does the server ask everyone? Who's back first? Does a silent client stop the round?</i></div></li>
+      <li><b>3</b><div>One client<br><i>What does it do with the model? Which layer did it change most?</i></div></li>
+      <li><b>4</b><div>Merging<br><i>Whose update counts more? Average or median against a bad client?</i></div></li>
+      <li><b>5</b><div>Privacy<br><i>What does the server actually see?</i></div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <p class="kicker">tested on Flower Hub</p>
+  <h2 style="max-width:none">Four apps it had never seen.</h2>
+  <table>
+    <tr><th>app</th><th>kind</th><th>strategy</th><th>result</th></tr>
+    <tr><td>@flwrlabs/federated-vae</td><td>PyTorch VAE on CIFAR-10</td><td>FedAvg</td><td class="tick">✓ ran clean</td></tr>
+    <tr><td>@swiergarst/fed-kmeans-flower</td><td>K-means in NumPy</td><td>none: its own loop</td><td class="tick">✓ after two plug-in fixes</td></tr>
+    <tr><td>@bloodcounts/nhanes-t2d-fedmap-fl</td><td>PyTorch MLP, NHANES data</td><td>FedMAP (custom)</td><td class="tick">✓ after one plug-in fix</td></tr>
+    <tr><td>@flwrlabs/quickstart-xgboost</td><td>XGBoost on Higgs</td><td>FedXgbBagging</td><td class="cross">✗ disk full on the test machine</td></tr>
+  </table>
+  <p class="lead" style="max-width:none;font-size:20px">Each app needed two lines plus their imports. Everything they exposed was fixed in the plug-in, never for one app:</p>
+  <ul class="fixes">
+    <li>apps with no strategy are recorded at the grid level</li>
+    <li>the Flower version is no longer pinned (it broke installs on Python 3.10)</li>
+    <li>layers are matched when a message carries extra records</li>
+    <li>errors show their root cause, not a wrapper</li>
+    <li>serialized byte payloads are no longer treated as numbers</li>
+    <li>custom job types keep their own names and charts</li>
+  </ul>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <p class="kicker">privacy</p>
+  <h2>It keeps the promise federated learning makes.</h2>
+  <div class="cols3">
+    <div class="box"><h3>Sent (by default)</h3><ul><li>timing and message flow</li><li>the metrics the app already returns</li><li>per layer: size, shape, and how much it changed</li></ul></div>
+    <div class="box"><h3>Never sent</h3><ul><li>weights or gradients</li><li>training data or labels</li><li>config values, partition ids</li><li>tracebacks</li></ul></div>
+    <div class="box"><h3>Your choice</h3><ul><li><code>minimal</code>: only timing and flow</li><li>hide layer names</li><li>a shared token for the collector</li><li><code>off</code></li></ul></div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <p class="kicker">where it stands</p>
+  <h2>What works, and what's not proven yet.</h2>
+  <div class="cols3">
+    <div class="box"><h3 class="tick">Verified</h3><ul><li>simulation runs with 5 different apps and 5 strategies</li><li>every recording replays exactly, with no federation running</li><li>a dead collector doesn't slow training</li><li>300 clients render in about 7–12 ms a frame</li><li>53 automated tests</li></ul></div>
+    <div class="box"><h3 class="cross">Not verified</h3><ul><li>real deployments across machines</li><li>Flower versions other than 1.44</li><li>a successful XGBoost run</li><li>Firefox and Safari</li></ul></div>
+    <div class="box"><h3>Next</h3><ul><li>publish the package so apps don't need a local path</li><li>an in-browser sandbox: change the strategy and see what happens</li></ul></div>
+  </div>
+  <div class="row"><a class="btn primary" href="https://github.com/qwertykeypadapple/flwr-viz" target="_blank" rel="noopener">Get it on GitHub</a><a class="btn" href="https://github.com/qwertykeypadapple/flwr-viz#readme" target="_blank" rel="noopener">Read the docs</a></div>
+  <footer>flwr·viz is an independent project built on the open-source <a href="https://flower.ai" target="_blank" rel="noopener">Flower</a> framework; it is not made by or affiliated with Flower Labs.</footer>
+</section>
+
+<script>
+// ---- the runs in the "try it" slide (all recorded from real Flower simulations)
+const RUNS = [
+  { file: "pytorch-fedavg.jsonl", tab: "PyTorch · FedAvg", text: "Flower's PyTorch quickstart, 10 clients, 4 rounds, with live training loss from inside the training loop. Click a client, then hover its card." },
+  { file: "sklearn-fedmedian.jsonl", tab: "scikit-learn · FedMedian", text: "Logistic regression with FedMedian, sampling 3 of 6 clients per round. Some clients fail on purpose, so you can see the round carry on." },
+  { file: "hub-federated-vae.jsonl", tab: "Hub: VAE", text: "@flwrlabs/federated-vae from Flower Hub. A variational autoencoder barely moves most layers per round, so the books stay pale." },
+  { file: "hub-fed-kmeans.jsonl", tab: "Hub: K-means (no strategy)", text: "@swiergarst/fed-kmeans-flower runs its own loop with no Flower strategy. Each round is the app's own steps: cluster locally, then check convergence." },
+  { file: "hub-fedmap.jsonl", tab: "Hub: FedMAP (custom)", text: "@bloodcounts/nhanes-t2d-fedmap-fl, a custom strategy, 10 clients. The server tests the model itself each round (AUROC 0.55 → 0.79)." },
+  { file: "hub-xgboost-failed.jsonl", tab: "Hub: XGBoost (all failed)", text: "@flwrlabs/quickstart-xgboost on a machine whose disk filled up: every client fails, and the scene shows exactly that." },
+];
+const tabs = document.getElementById("tabs"), viewer = document.getElementById("viewer"), cap = document.getElementById("caption");
+function pick(i) {
+  [...tabs.children].forEach((b, j) => b.classList.toggle("on", i === j));
+  viewer.dataset.src = `viewer/?file=${RUNS[i].file}&speed=2`;
+  if (viewer.src || viewer.dataset.loaded) viewer.src = viewer.dataset.src;
+  cap.textContent = RUNS[i].text;
+}
+RUNS.forEach((r, i) => { const b = document.createElement("button"); b.textContent = r.tab; b.onclick = () => pick(i); tabs.appendChild(b); });
+pick(0);
+
+// ---- load an iframe only while its slide is on screen (each one is a 3D scene)
+const io = new IntersectionObserver(es => es.forEach(e => {
+  const f = e.target.querySelector("iframe[data-src]"); if (!f) return;
+  if (e.isIntersecting) { if (!f.src) { f.src = f.dataset.src; f.dataset.loaded = 1; } }
+  else if (f.src) { f.removeAttribute("src"); delete f.dataset.loaded; }
+}), { threshold: .15 });
+document.querySelectorAll(".slide").forEach(s => io.observe(s));
+
+// ---- slide dots, counter and keyboard
+const slides = [...document.querySelectorAll(".slide")], dots = document.getElementById("dots"), count = document.getElementById("count");
+slides.forEach((s, i) => { const a = document.createElement("a"); a.href = "#"; a.title = `slide ${i + 1}`; a.onclick = e => { e.preventDefault(); s.scrollIntoView(); }; dots.appendChild(a); });
+let cur = 0;
+const seen = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { cur = slides.indexOf(e.target); [...dots.children].forEach((d, i) => d.classList.toggle("on", i === cur)); count.textContent = `${cur + 1} / ${slides.length}`; } }), { threshold: .55 });
+slides.forEach(s => seen.observe(s));
+addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("iframe, input, textarea")) return;
+  const to = { ArrowDown: 1, PageDown: 1, " ": 1, ArrowRight: 1, ArrowUp: -1, PageUp: -1, ArrowLeft: -1 }[e.key];
+  if (!to) return; e.preventDefault();
+  slides[Math.max(0, Math.min(slides.length - 1, cur + to))].scrollIntoView();
+});
+</script>
+</body>
+</html>
