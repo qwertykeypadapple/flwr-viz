@@ -213,7 +213,7 @@ strategy = <span class="h">instrument(</span>FedAvg(...)<span class="h">, run_co
 
 <!-- 6 -->
 <section class="slide" id="try">
-  <p class="kicker">try it: six real runs</p>
+  <p class="kicker">try it: five real runs</p>
   <h2 style="max-width:none">Replay a real federation.</h2>
   <div class="tabs" id="tabs"></div>
   <div class="frame"><iframe id="viewer" title="flwr-viz viewer" data-src=""></iframe></div>
@@ -242,21 +242,18 @@ strategy = <span class="h">instrument(</span>FedAvg(...)<span class="h">, run_co
 <!-- 8 -->
 <section class="slide">
   <p class="kicker">tested on Flower Hub</p>
-  <h2 style="max-width:none">Four apps it had never seen.</h2>
+  <h2 style="max-width:none">Three apps it had never seen.</h2>
   <table>
     <tr><th>app</th><th>kind</th><th>strategy</th><th>result</th></tr>
     <tr><td>@flwrlabs/federated-vae</td><td>PyTorch VAE on CIFAR-10</td><td>FedAvg</td><td class="tick">✓ ran clean</td></tr>
     <tr><td>@swiergarst/fed-kmeans-flower</td><td>K-means in NumPy</td><td>none: its own loop</td><td class="tick">✓ after two plug-in fixes</td></tr>
     <tr><td>@bloodcounts/nhanes-t2d-fedmap-fl</td><td>PyTorch MLP, NHANES data</td><td>FedMAP (custom)</td><td class="tick">✓ after one plug-in fix</td></tr>
-    <tr><td>@flwrlabs/quickstart-xgboost</td><td>XGBoost on Higgs</td><td>FedXgbBagging</td><td class="cross">✗ disk full on the test machine</td></tr>
   </table>
   <p class="lead" style="max-width:none;font-size:20px">Each app needed two lines plus their imports. Everything they exposed was fixed in the plug-in, never for one app:</p>
   <ul class="fixes">
     <li>apps with no strategy are recorded at the grid level</li>
     <li>the Flower version is no longer pinned (it broke installs on Python 3.10)</li>
     <li>layers are matched when a message carries extra records</li>
-    <li>errors show their root cause, not a wrapper</li>
-    <li>serialized byte payloads are no longer treated as numbers</li>
     <li>custom job types keep their own names and charts</li>
   </ul>
 </section>
@@ -277,8 +274,8 @@ strategy = <span class="h">instrument(</span>FedAvg(...)<span class="h">, run_co
   <p class="kicker">where it stands</p>
   <h2>What works, and what's not proven yet.</h2>
   <div class="cols3">
-    <div class="box"><h3 class="tick">Verified</h3><ul><li>simulation runs with 5 different apps and 5 strategies</li><li>every recording replays exactly, with no federation running</li><li>a dead collector doesn't slow training</li><li>300 clients render in about 7–12 ms a frame</li><li>53 automated tests</li></ul></div>
-    <div class="box"><h3 class="cross">Not verified</h3><ul><li>real deployments across machines</li><li>Flower versions other than 1.44</li><li>a successful XGBoost run</li><li>Firefox and Safari</li></ul></div>
+    <div class="box"><h3 class="tick">Verified</h3><ul><li>simulation runs with 5 apps: FedAvg, FedMedian, a custom strategy, and no strategy at all</li><li>every recording replays exactly, with no federation running</li><li>a dead collector doesn't slow training</li><li>300 clients render in about 7–12 ms a frame</li><li>53 automated tests</li></ul></div>
+    <div class="box"><h3 class="cross">Not verified</h3><ul><li>real deployments across machines</li><li>Flower versions other than 1.44</li><li>Firefox and Safari</li></ul></div>
     <div class="box"><h3>Next</h3><ul><li>publish the package so apps don't need a local path</li><li>an in-browser sandbox: change the strategy and see what happens</li></ul></div>
   </div>
   <div class="row"><a class="btn primary" href="https://github.com/qwertykeypadapple/flwr-viz" target="_blank" rel="noopener">Get it on GitHub</a><a class="btn" href="https://github.com/qwertykeypadapple/flwr-viz#readme" target="_blank" rel="noopener">Read the docs</a></div>
@@ -293,7 +290,6 @@ const RUNS = [
   { file: "hub-federated-vae.jsonl", tab: "Hub: VAE", text: "@flwrlabs/federated-vae from Flower Hub. A variational autoencoder barely moves most layers per round, so the books stay pale." },
   { file: "hub-fed-kmeans.jsonl", tab: "Hub: K-means (no strategy)", text: "@swiergarst/fed-kmeans-flower runs its own loop with no Flower strategy. Each round is the app's own steps: cluster locally, then check convergence." },
   { file: "hub-fedmap.jsonl", tab: "Hub: FedMAP (custom)", text: "@bloodcounts/nhanes-t2d-fedmap-fl, a custom strategy, 10 clients. The server tests the model itself each round (AUROC 0.55 → 0.79)." },
-  { file: "hub-xgboost-failed.jsonl", tab: "Hub: XGBoost (all failed)", text: "@flwrlabs/quickstart-xgboost on a machine whose disk filled up: every client fails, and the scene shows exactly that." },
 ];
 const tabs = document.getElementById("tabs"), viewer = document.getElementById("viewer"), cap = document.getElementById("caption");
 function pick(i) {

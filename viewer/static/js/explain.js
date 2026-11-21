@@ -74,9 +74,7 @@ const STRATEGIES = {
   FedAdagrad: "Average the client updates, then apply them on the server with the Adagrad optimiser.",
   FedAvgM: "FedAvg plus server-side momentum: the server keeps some of the previous round's direction, which smooths training.",
   QFedAvg: "A fairness-oriented FedAvg that gives more weight to clients where the model currently does badly.",
-  FedXgbBagging: "For XGBoost: each client grows trees on its data and the server collects them into one forest.",
   "ServerApp without a Strategy": "This app runs its own loop instead of a Flower Strategy: it sends its own kinds of messages (shown as the phases of each round) and combines the answers in its own code. flwr-viz sees every message and reply, but not the combining step. A new round is counted each time the app repeats a kind of message.",
-  FedXgbCyclic: "For XGBoost: clients take turns improving one shared model, one client per round.",
 };
 
 const LEVELS = {

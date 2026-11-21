@@ -24,11 +24,6 @@
    "name": "hub-fedmap.jsonl",
    "title": "Flower Hub: nhanes-t2d-fedmap-fl \u00b7 FedMAP",
    "bytes": 560054
-  },
-  {
-   "name": "hub-xgboost-failed.jsonl",
-   "title": "Flower Hub: quickstart-xgboost \u00b7 every client failed",
-   "bytes": 65358
   }
  ]
 }
