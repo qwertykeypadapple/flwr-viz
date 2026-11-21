@@ -24,7 +24,6 @@ RUNS = [
     ("hub-federated-vae.jsonl", "examples/hub/federated-vae/recorded-run.jsonl", "Flower Hub: federated-vae · FedAvg"),
     ("hub-fed-kmeans.jsonl", "examples/hub/fed-kmeans-flower/recorded-run.jsonl", "Flower Hub: fed-kmeans-flower · no strategy"),
     ("hub-fedmap.jsonl", "examples/hub/nhanes-t2d-fedmap-fl/recorded-run.jsonl", "Flower Hub: nhanes-t2d-fedmap-fl · FedMAP"),
-    ("hub-xgboost-failed.jsonl", "examples/hub/quickstart-xgboost/recorded-run-disk-full.jsonl", "Flower Hub: quickstart-xgboost · every client failed"),
 ]
 
 
@@ -40,6 +39,10 @@ def main(out: Path) -> None:
     page = page.replace('<script type="importmap">', cfg + '<script type="importmap">', 1)
     (viewer / "index.html").write_text(page)
     (viewer / "static" / "index.html").unlink()
+    # The site shows no XGBoost run, so its copy of the glossary leaves out the XGBoost strategies
+    # (the plug-in itself keeps them for real XGBoost apps).
+    ex = viewer / "static" / "js" / "explain.js"
+    ex.write_text("".join(l for l in ex.read_text().splitlines(keepends=True) if "FedXgb" not in l))
     rec = viewer / "recordings"
     rec.mkdir()
     manifest = []

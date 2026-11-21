@@ -17,3 +17,5 @@ examples/*/checkpoints/
 *.pt
 examples/**/*.log
 examples/**/logs/
+# not published
+examples/hub/quickstart-xgboost/
